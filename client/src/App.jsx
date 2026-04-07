@@ -1,6 +1,6 @@
 /*
   App.jsx
-
+ 
   Changes from previous version:
   1. Imported HomeView component
   2. Added allSessionHistory state (flattened sessions across all chats)
@@ -9,8 +9,8 @@
   4. Theme toggle (Sun/Moon) preserved in topbar-right
   5. All other logic identical to previous version
 */
-
-import React, { useState, useEffect, useRef } from 'react';
+ 
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Menu, X, Sun, Moon } from 'lucide-react';
 import AuthPage             from './components/AuthPage';
 import LandingPage          from './components/LandingPage';
@@ -26,7 +26,7 @@ import JDInterviewPanel     from './components/JDInterviewPanel';
 import HomeView             from './components/HomeView';
 import { authAPI, chatAPI, questionAPI } from './services/api';
 import './App.css';
-
+ 
 // ── Theme hook ─────────────────────────────────────────────────────────────
 function useTheme() {
   const getInitial = () => {
@@ -34,37 +34,37 @@ function useTheme() {
     if (stored === 'light' || stored === 'dark') return stored;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
-
+ 
   const [theme, setThemeState] = useState(getInitial);
-
+ 
   const setTheme = (t) => {
     setThemeState(t);
     localStorage.setItem('theme', t);
     document.documentElement.setAttribute('data-theme', t);
   };
-
+ 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
-
+ 
   return { theme, toggleTheme: () => setTheme(theme === 'dark' ? 'light' : 'dark') };
 }
-
+ 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const getExamConfig = (chat) => {
   if (!chat?.examConfig) return {};
   try { return typeof chat.examConfig === 'string' ? JSON.parse(chat.examConfig) : chat.examConfig; }
   catch { return {}; }
 };
-
+ 
 const getChatSessionMode    = (chat) => getExamConfig(chat).sessionMode    || 'normal';
 const getChatVideoMediaMode = (chat) => getExamConfig(chat).videoMediaMode || 'video';
 const isJDChat              = (chat) => getExamConfig(chat).chatType === 'jd';
-
+ 
 // ── App ────────────────────────────────────────────────────────────────────
 const App = () => {
   const { theme, toggleTheme } = useTheme();
-
+ 
   const [user, setUser] = useState(() => {
     const u = localStorage.getItem('user');
     return u ? JSON.parse(u) : null;
@@ -80,12 +80,26 @@ const App = () => {
   const [pdfs,              setPdfs]               = useState([]);
   const [sessionHistory,    setSessionHistory]     = useState([]);
   const [allSessionHistory, setAllSessionHistory]  = useState([]); // for homepage
+  const [toast, setToast] = useState(null); // { message, type }
+ 
+  const showToast = React.useCallback((message, type = 'info', duration = 3000) => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), duration);
+  }, []);
   const [reviewSession,     setReviewSession]      = useState(null);
   const [showAnalytics,     setShowAnalytics]      = useState(false);
   const [showFlashcards,    setShowFlashcards]     = useState(false);
-
+ 
   const pdfPollRef = useRef(null);
-
+  const contentAreaRef = useRef(null);
+ 
+  // Auto-scroll to top whenever active session changes (new questions loaded)
+  useEffect(() => {
+    if (activeSession && contentAreaRef.current) {
+      contentAreaRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [activeSession]);
+ 
   // ── Auth ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -103,23 +117,23 @@ const App = () => {
         setAuthVerified(true);
       });
   }, []);
-
+ 
   // ── Data loaders ──────────────────────────────────────────────────────────
   const loadChats = async () => {
     try { const res = await chatAPI.getChats(); setChats(res.data || []); }
     catch (e) { console.error(e); }
   };
-
+ 
   const loadPDFs = async (chatId) => {
     try { const res = await chatAPI.getPDFs(chatId); setPdfs(res.data || []); return res.data || []; }
     catch { return []; }
   };
-
+ 
   const loadSessionHistory = async (chatId) => {
     try { const res = await chatAPI.getChatHistory(chatId); setSessionHistory(res.data || []); }
     catch (e) { console.error(e); }
   };
-
+ 
   // Load all recent sessions for the homepage (lightweight — just metadata)
   const loadAllSessionHistory = async () => {
     try {
@@ -132,7 +146,7 @@ const App = () => {
       // When a chat's history loads we merge it in.
     } catch {}
   };
-
+ 
   const startPdfPollingIfNeeded = (chatId, currentPdfs) => {
     if (pdfPollRef.current) { clearInterval(pdfPollRef.current); pdfPollRef.current = null; }
     if (!chatId || !(currentPdfs || []).some(p => !p.processed && !p.error)) return;
@@ -143,9 +157,9 @@ const App = () => {
       }
     }, 2000);
   };
-
+ 
   useEffect(() => { if (user) loadChats(); }, [user]);
-
+ 
   useEffect(() => {
     if (!currentChatId) return;
     const chat = chats.find(c => c.chatId === currentChatId);
@@ -158,7 +172,7 @@ const App = () => {
     })();
     return () => { if (pdfPollRef.current) { clearInterval(pdfPollRef.current); pdfPollRef.current = null; } };
   }, [currentChatId]);
-
+ 
   // Merge sessionHistory into allSessionHistory for the homepage
   useEffect(() => {
     if (!sessionHistory.length) return;
@@ -171,19 +185,19 @@ const App = () => {
         .slice(0, 50);
     });
   }, [sessionHistory]);
-
+ 
   // ── Auth handlers ──────────────────────────────────────────────────────────
   const handleLogin = (u) => {
     setUser(u); setCurrentChatId(null); setActiveSession(null); setReviewSession(null);
   };
-
+ 
   const handleLogout = () => {
     localStorage.removeItem('token'); localStorage.removeItem('user');
     setUser(null); setCurrentChatId(null); setActiveSession(null);
     setReviewSession(null); setChats([]); setPdfs([]);
     setSessionHistory([]); setAllSessionHistory([]);
   };
-
+ 
   // ── Create chat ────────────────────────────────────────────────────────────
   const handleCreateChat = async (chatData) => {
     try {
@@ -207,7 +221,7 @@ const App = () => {
         setActiveSession(null); setReviewSession(null);
         return;
       }
-
+ 
       const examConfig = {
         ...chatData.examConfig,
         sessionMode:    chatData.sessionMode    || 'normal',
@@ -234,7 +248,7 @@ const App = () => {
       alert('Failed to create session: ' + (error.response?.data?.error || error.message));
     }
   };
-
+ 
   // ── Upload PDF ─────────────────────────────────────────────────────────────
   const handleUploadPDF = async (chatId, filesOrFile) => {
     try {
@@ -247,16 +261,16 @@ const App = () => {
       const latest = await loadPDFs(chatId);
       setChats(prev => prev.map(c => c.chatId === chatId ? { ...c, pdfCount: latest.length } : c));
       startPdfPollingIfNeeded(chatId, latest);
-      alert('PDF(s) uploaded successfully. Processing in background...');
+      showToast('PDF uploaded — processing in background', 'success');
     } catch (error) {
       const status = error.response?.status;
       const msg    = error.response?.data?.error || error.message;
-      if (status === 409) { alert(msg); await loadPDFs(chatId); return; }
-      alert('Failed to upload PDF: ' + msg);
+      if (status === 409) { showToast(msg, 'error', 5000); await loadPDFs(chatId); return; }
+      showToast('Upload failed: ' + msg, 'error', 5000);
       await loadPDFs(chatId);
     }
   };
-
+ 
   // ── Exam generation ────────────────────────────────────────────────────────
   const handleGenerateFullExam = async (chatId) => {
     try {
@@ -270,7 +284,7 @@ const App = () => {
       throw error;
     }
   };
-
+ 
   const handleGenerateWeakExam = async (chatId) => {
     try {
       const res  = await questionAPI.generateWeakExam(chatId);
@@ -283,7 +297,7 @@ const App = () => {
       throw error;
     }
   };
-
+ 
   const handleSubmitTest = async (answers) => {
     if (!activeSession?.sessionId) return;
     try {
@@ -294,13 +308,15 @@ const App = () => {
         return { ...chat, weakTopics: wt, analytics: res.data.analytics || chat.analytics || [] };
       }));
       await loadSessionHistory(currentChatId);
+      // Reload chats to update analytics, weakTopics, pdfCount in sidebar
+      await loadChats();
       return res.data;
     } catch (error) {
-      alert('Failed to submit: ' + (error.response?.data?.error || error.message));
+      showToast('Failed to submit: ' + (error.response?.data?.error || error.message), 'error', 5000);
       throw error;
     }
   };
-
+ 
   const handleVideoInterviewFinished = (result) => {
     const sessionQuestions = activeSession?.questions || [];
     const sessionId        = activeSession?.sessionId;
@@ -312,30 +328,81 @@ const App = () => {
         answers: {}, feedback: result.results || {},
       });
       loadSessionHistory(currentChatId);
+      loadChats(); // refresh sidebar analytics
     }
   };
-
-  const handleJDSessionFinished = () => { loadSessionHistory(currentChatId); };
-
+ 
+  const handleJDSessionFinished = () => {
+    loadSessionHistory(currentChatId);
+    loadChats();
+  };
+ 
   const handleSelectChat = (chatId) => {
     setCurrentChatId(chatId);
     setActiveSession(null); setPdfs([]); setReviewSession(null);
     setShowAnalytics(false); setShowFlashcards(false);
   };
-
+ 
+  const handleDeleteChat = async (chatId) => {
+    try {
+      await chatAPI.deleteChat(chatId);
+      setChats(prev => prev.filter(c => c.chatId !== chatId));
+      if (currentChatId === chatId) {
+        setCurrentChatId(null);
+        setActiveSession(null); setPdfs([]); setReviewSession(null);
+      }
+      showToast('Session deleted', 'success');
+    } catch (error) {
+      showToast('Failed to delete: ' + (error.response?.data?.error || error.message), 'error', 5000);
+    }
+  };
+ 
+  const handleDeletePDF = async (pdfId) => {
+    try {
+      await chatAPI.deletePDF(pdfId);
+      setPdfs(prev => prev.filter(p => p.pdfId !== pdfId));
+      setChats(prev => prev.map(c =>
+        c.chatId === currentChatId
+          ? { ...c, pdfCount: Math.max(0, (c.pdfCount || 1) - 1) }
+          : c
+      ));
+      showToast('PDF removed', 'success');
+    } catch (error) {
+      showToast('Failed to remove PDF', 'error', 4000);
+    }
+  };
+ 
+  const handleRetryPDF = async (pdfId) => {
+    try {
+      await chatAPI.retryPDF(pdfId);
+      // Mark it as processing in local state immediately so the UI updates
+      setPdfs(prev => prev.map(p =>
+        p.pdfId === pdfId
+          ? { ...p, error: null, processed: false, type: 'pending' }
+          : p
+      ));
+      showToast('Retrying upload…', 'info', 2000);
+      // Kick off polling so we automatically detect when processing completes
+      const latest = await chatAPI.getPDFs(currentChatId).then(r => r.data || []);
+      startPdfPollingIfNeeded(currentChatId, latest);
+    } catch (error) {
+      showToast('Retry failed: ' + (error.response?.data?.error || error.message), 'error', 4000);
+    }
+  };
+ 
   // ── Homepage handlers ──────────────────────────────────────────────────────
   const handleHomeCreateSession = (tab) => {
     setNewChatDefaultTab(tab);
     setShowNewChatModal(true);
   };
-
+ 
   const handleHomeOpenSession = (session) => {
     // Find which chat this session belongs to (use chatId stored on session)
     // and navigate there with the session open as review
     if (session.chatId) handleSelectChat(session.chatId);
     setReviewSession(session);
   };
-
+ 
   // ── Derived ────────────────────────────────────────────────────────────────
   const currentChat        = chats.find(c => c.chatId === currentChatId);
   const currentChatIsJD    = isJDChat(currentChat);
@@ -344,7 +411,7 @@ const App = () => {
   const canGenerate        = hasAnyPDF && allProcessed;
   const sessionMode        = getChatSessionMode(currentChat);
   const chatVideoMediaMode = getChatVideoMediaMode(currentChat);
-
+ 
   if (!authVerified) {
     return (
       <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
@@ -352,9 +419,9 @@ const App = () => {
       </div>
     );
   }
-
+ 
   if (!user) return <LandingPage onLogin={handleLogin} />;
-
+ 
   return (
     <div className="app-shell">
       <ChatSidebar
@@ -363,9 +430,10 @@ const App = () => {
         onCreateChat={() => { setNewChatDefaultTab('exam'); setShowNewChatModal(true); }}
         onLogout={handleLogout}
         onUploadPDF={handleUploadPDF}
+        onDeleteChat={handleDeleteChat}
         sidebarOpen={sidebarOpen}
       />
-
+ 
       <div className="main-content">
         <div className="topbar">
           <div className="topbar-left">
@@ -392,7 +460,7 @@ const App = () => {
               </div>
             )}
           </div>
-
+ 
           <div className="topbar-right">
             <button
               className="btn-icon theme-toggle"
@@ -404,8 +472,8 @@ const App = () => {
             </button>
           </div>
         </div>
-
-        <div className="content-area">
+ 
+        <div className="content-area" ref={contentAreaRef}>
           {/* ── No chat selected → Homepage ── */}
           {!currentChatId ? (
             <HomeView
@@ -416,17 +484,17 @@ const App = () => {
               onSelectChat={handleSelectChat}
               onOpenSession={handleHomeOpenSession}
             />
-
+ 
           ) : currentChatIsJD ? (
             <JDInterviewPanel
               chat={currentChat} chatId={currentChatId}
               sessionHistory={sessionHistory}
               onSessionFinished={handleJDSessionFinished}
             />
-
+ 
           ) : reviewSession ? (
             <SessionReview session={reviewSession} onBack={() => setReviewSession(null)} />
-
+ 
           ) : activeSession?.mode === 'video' && activeSession.questions?.length > 0 ? (
             <VideoInterviewSession
               questions={activeSession.questions}
@@ -436,7 +504,7 @@ const App = () => {
               onFinished={handleVideoInterviewFinished}
               onExit={() => setActiveSession(null)}
             />
-
+ 
           ) : activeSession?.mode === 'normal' && activeSession.questions?.length > 0 ? (
             <QuestionRenderer
               questions={activeSession.questions}
@@ -444,7 +512,7 @@ const App = () => {
               sessionId={activeSession.sessionId}
               onExitToHome={() => setActiveSession(null)}
             />
-
+ 
           ) : (
             <PracticeSession
               chat={currentChat} pdfs={pdfs}
@@ -452,6 +520,8 @@ const App = () => {
               onGenerateFullExam={() => handleGenerateFullExam(currentChatId)}
               onGenerateWeakExam={() => handleGenerateWeakExam(currentChatId)}
               onUploadPDF={(files) => handleUploadPDF(currentChatId, files)}
+              onDeletePDF={handleDeletePDF}
+              onRetryPDF={handleRetryPDF}
               onOpenHistorySession={(session) => setReviewSession(session)}
               canGenerate={canGenerate}
               allProcessed={allProcessed}
@@ -467,7 +537,7 @@ const App = () => {
           )}
         </div>
       </div>
-
+ 
       {/* ── Modals ── */}
       {showAnalytics && currentChat && !currentChatIsJD && (
         <AnalyticsDashboard
@@ -475,14 +545,14 @@ const App = () => {
           onClose={() => setShowAnalytics(false)}
         />
       )}
-
+ 
       {showFlashcards && currentChat && !currentChatIsJD && (
         <FlashcardDeck
           chat={currentChat} chatId={currentChatId}
           onClose={() => setShowFlashcards(false)}
         />
       )}
-
+ 
       {showNewChatModal && (
         <NewChatModal
           onClose={() => { setShowNewChatModal(false); setPrefilledExamType(''); }}
@@ -491,9 +561,30 @@ const App = () => {
           defaultTab={newChatDefaultTab}
         />
       )}
+ 
+      {/* ── Global style patches ── */}
+      <style>{`
+        .chat-item:hover .chat-item-menu-btn { opacity: 1 !important; }
+        .chat-item.active .chat-item-menu-btn { opacity: 1 !important; }
+      `}</style>
+ 
+      {/* ── Toast notification ── */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+          background: toast.type === 'success' ? 'var(--success)' : toast.type === 'error' ? 'var(--danger)' : 'var(--primary)',
+          color: 'white', padding: '10px 18px', borderRadius: 10,
+          fontSize: 13, fontWeight: 600,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+          animation: 'modalSlide 0.2s ease',
+          display: 'flex', alignItems: 'center', gap: 8,
+          maxWidth: 340,
+        }}>
+          {toast.type === 'success' ? '✓' : toast.type === 'error' ? '✕' : 'ℹ'} {toast.message}
+        </div>
+      )}
     </div>
   );
 };
-
+ 
 export default App;
-

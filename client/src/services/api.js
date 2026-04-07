@@ -12,26 +12,26 @@
  * All axios calls automatically attach the JWT from localStorage via the
  * request interceptor.  No component needs to touch headers or tokens.
  */
-
+ 
 import axios from 'axios';
-
+ 
 // ── Base URL ───────────────────────────────────────────────────────────────
 const BASE_URL = 'http://localhost:5000';
 const API_BASE = `${BASE_URL}/api`;
-
+ 
 // ── Axios instance ─────────────────────────────────────────────────────────
 const api = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 });
-
+ 
 // Attach JWT on every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
-
+ 
 // ── Auth ───────────────────────────────────────────────────────────────────
 export const authAPI = {
   login:    (data) => api.post('/auth/login', data),
@@ -39,13 +39,15 @@ export const authAPI = {
   /** Verify JWT with DB on app init — never trust localStorage alone */
   getMe:    ()     => api.get('/auth/me'),
 };
-
+ 
 // ── Chats & PDFs ───────────────────────────────────────────────────────────
 export const chatAPI = {
   getChats:       ()             => api.get('/chats'),
   createChat:     (data)         => api.post('/chats', data),
+  deleteChat:     (chatId)       => api.delete(`/chats/${chatId}`),
   retryPDF:       (pdfId)        => api.post(`/pdfs/${pdfId}/retry`),
-
+  deletePDF:      (pdfId)        => api.delete(`/pdfs/${pdfId}`),
+ 
   uploadPDF: (chatId, file) => {
     const form = new FormData();
     form.append('pdf', file);
@@ -53,18 +55,18 @@ export const chatAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-
+ 
   getPDFs:        (chatId) => api.get(`/chats/${chatId}/pdfs`),
   getChatHistory: (chatId) => api.get(`/chats/${chatId}/history`),
 };
-
+ 
 // ── Exam Questions & Sessions ──────────────────────────────────────────────
 export const questionAPI = {
   generateFullExam: (chatId)             => api.post(`/chats/${chatId}/questions/generate/full`),
   generateWeakExam: (chatId)             => api.post(`/chats/${chatId}/questions/generate/weak`),
   submitAnswers:    (sessionId, answers) => api.post(`/sessions/${sessionId}/submit`, { answers }),
 };
-
+ 
 // ── Flashcards ─────────────────────────────────────────────────────────────
 export const flashcardAPI = {
   /**
@@ -76,7 +78,7 @@ export const flashcardAPI = {
   generate: (chatId, { mode, count, topic }) =>
     api.post(`/chats/${chatId}/flashcards/generate`, { mode, count, topic }),
 };
-
+ 
 // ── Video Evaluation ───────────────────────────────────────────────────────
 export const videoAPI = {
   /**
@@ -109,12 +111,12 @@ export const videoAPI = {
     form.append('bloom_level',   bloomLevel);
     form.append('difficulty',    difficulty);
     form.append('all_questions', JSON.stringify(allQuestions));
-
+ 
     return api.post(`/chats/${chatId}/video-question`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-
+ 
   /**
    * Finalize a video session.
    * Backend reads feedback already in DB, recalculates score, marks complete.
@@ -122,7 +124,7 @@ export const videoAPI = {
    */
   finalize: (chatId, sessionId) =>
     api.post(`/chats/${chatId}/video-session/finalize`, { session_id: sessionId }),
-
+ 
   /**
    * Legacy full-replace save (used by JD text sessions and backward compat).
    * Prefer videoAPI.finalize for video sessions.
@@ -130,7 +132,7 @@ export const videoAPI = {
   save: (chatId, payload) =>
     api.post(`/chats/${chatId}/video-session/save`, payload),
 };
-
+ 
 // ── Intelligence / Analytics ───────────────────────────────────────────────
 export const intelligenceAPI = {
   /** Delivery trends over video sessions (requires 3+ video sessions) */
@@ -142,13 +144,13 @@ export const intelligenceAPI = {
   /** Unified learner diagnostic: bloom + misconceptions + delivery → health score */
   diagnostic:       (chatId) => api.get(`/chats/${chatId}/intelligence/diagnostic`),
 };
-
+ 
 // ── JD Interview Prep ──────────────────────────────────────────────────────
 export const jdAPI = {
   // Upload job description (jd_routes.py)
   uploadText: (chatId, text) =>
     api.post(`/chats/${chatId}/jd/upload-text`, { text }),
-
+ 
   uploadFile: (chatId, file) => {
     const form = new FormData();
     form.append('file', file);
@@ -156,10 +158,10 @@ export const jdAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-
+ 
   getJD:    (chatId) => api.get(`/chats/${chatId}/jd`),
   deleteJD: (chatId) => api.delete(`/chats/${chatId}/jd`),
-
+ 
   /**
    * Generate JD questions and pre-create the session row.
    * Returns { sessionId, questions, sessionMode }.
@@ -170,11 +172,10 @@ export const jdAPI = {
       type,
       session_mode: sessionMode,
     }),
-
+ 
   /** Submit text/voice answers → LLM feedback → saved to history */
   submitSession: (sessionId, answers) =>
     api.post(`/jd-sessions/${sessionId}/submit`, { answers }),
 };
-
+ 
 export default api;
-

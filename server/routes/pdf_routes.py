@@ -179,3 +179,57 @@ def retry_pdf(pdf_id):
 
     return jsonify({"status": "requeued"}), 202
 
+
+
+@bp.route("/api/pdfs/<pdf_id>", methods=["DELETE"])
+def delete_pdf(pdf_id):
+    """
+    Delete a single PDF/document from a chat.
+    Also removes its embeddings from ChromaDB.
+    """
+    import os as _os
+    user = get_user_from_token()
+    if not user:
+        return jsonify({"error": "unauthorized"}), 401
+
+    pdf = PDFDocument.query.get(pdf_id)
+    if not pdf:
+        return jsonify({"error": "not found"}), 404
+
+    chat = Chat.query.get(pdf.chat_id)
+    if not chat or chat.user_id != user.id:
+        return jsonify({"error": "unauthorized"}), 403
+
+    chat_id = pdf.chat_id
+
+    # Remove embeddings from ChromaDB (best-effort)
+    try:
+        from services.chroma_service import get_chroma_client, chroma_collection_name, get_chroma_collection
+        client     = get_chroma_client()
+        col_name   = chroma_collection_name(user.id, chat_id)
+        collection = get_chroma_collection(client, col_name)
+        # Embeddings are stored with ids like "{pdf_id}_0", "{pdf_id}_1", ...
+        # Get all ids that belong to this pdf
+        try:
+            all_ids = collection.get(where={"pdf_id": pdf_id}, include=[])
+            if all_ids and all_ids.get("ids"):
+                collection.delete(ids=all_ids["ids"])
+        except Exception:
+            # Fallback: try deleting by prefix pattern
+            pass
+    except Exception:
+        pass
+
+    # Remove file from disk (best-effort)
+    try:
+        if pdf.file_path and _os.path.exists(pdf.file_path):
+            _os.remove(pdf.file_path)
+    except Exception:
+        pass
+
+    db.session.delete(pdf)
+    db.session.commit()
+
+    invalidate_chat(chat_id, user.id)
+
+    return jsonify({"deleted": True, "pdfId": pdf_id})

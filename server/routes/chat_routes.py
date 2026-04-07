@@ -194,3 +194,65 @@ def chat_history(chat_id):
 
     return jsonify(result)
 
+
+
+@bp.route("/api/chats/<chat_id>", methods=["DELETE"])
+def delete_chat(chat_id):
+    """
+    Delete a chat and ALL associated data.
+    We explicitly delete every child table in the correct order to satisfy
+    foreign key constraints (Postgres enforces them; SQLAlchemy cascade alone
+    is not enough when FK constraints exist without ON DELETE CASCADE in DB).
+
+    Deletion order:
+      1. MisconceptionRecord  (refs practice_session + chat)
+      2. PracticeSession       (refs chat)
+      3. PDFDocument           (refs chat)
+      4. SubjectTopic          (refs chat)
+      5. JobDescription        (refs chat)
+      6. Chat                  (root)
+    """
+    from models.misconception import MisconceptionRecord
+    from models.job_description import JobDescription
+    from models.practice import PracticeSession, SubjectTopic
+    from models.pdf import PDFDocument
+
+    user = get_user_from_token()
+    if not user:
+        return jsonify({"error": "unauthorized"}), 401
+
+    chat = Chat.query.get(chat_id)
+    if not chat or chat.user_id != user.id:
+        return jsonify({"error": "not found"}), 404
+
+    try:
+        # 1. Delete ChromaDB collection (best-effort)
+        try:
+            from services.chroma_service import get_chroma_client, chroma_collection_name
+            client   = get_chroma_client()
+            col_name = chroma_collection_name(user.id, chat_id)
+            client.delete_collection(col_name)
+        except Exception:
+            pass
+
+        # 2. Delete all child rows in FK-safe order
+        MisconceptionRecord.query.filter_by(chat_id=chat_id).delete(synchronize_session=False)
+        PracticeSession.query.filter_by(chat_id=chat_id).delete(synchronize_session=False)
+        PDFDocument.query.filter_by(chat_id=chat_id).delete(synchronize_session=False)
+        SubjectTopic.query.filter_by(chat_id=chat_id).delete(synchronize_session=False)
+        JobDescription.query.filter_by(chat_id=chat_id).delete(synchronize_session=False)
+
+        # 3. Delete the chat itself
+        db.session.delete(chat)
+        db.session.commit()
+
+        invalidate_chat_list(user.id)
+        invalidate_chat(chat_id, user.id)
+
+        return jsonify({"deleted": True, "chatId": chat_id})
+
+    except Exception as exc:
+        db.session.rollback()
+        import logging
+        logging.getLogger("chat_routes").exception("delete_chat failed: %s", exc)
+        return jsonify({"error": f"Failed to delete session: {str(exc)}"}), 500

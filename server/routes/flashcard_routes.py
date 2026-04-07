@@ -9,7 +9,7 @@ Security hardened:
 
 import json
 from flask import Blueprint, request, jsonify
-from models import Chat, SubjectTopic
+from models import Chat, SubjectTopic, PracticeSession
 from services.auth_service import get_user_from_token
 from services.chroma_service import (
     get_chroma_client,
@@ -94,11 +94,18 @@ def generate_flashcards(chat_id):
     collection_name = chroma_collection_name(user.id, chat_id)
     collection      = get_chroma_collection(client, collection_name)
 
+    # ── Session seed for chunk rotation — gives different flashcards each time ─
+    # Combines session count + mode/count/topic so each generation request
+    # gets a different offset into the vector store, avoiding repeated content.
+    flashcard_seed = PracticeSession.query.filter_by(chat_id=chat_id).count()
+    flashcard_seed = abs(flashcard_seed + hash(f"{mode}_{count}_{topic_hint}") % 100)
+
     # ── Build context based on mode ──────────────────────────────────────
     if mode == "topic" and topic_hint:
         # Re-validate topic belongs to this chat using embedding match
         matched_topic = map_to_closest_topic(topic_hint, allowed_topics, threshold=0.35)
-        context     = fetch_topic_chunks(collection, matched_topic, n_results=6)
+        context     = fetch_topic_chunks(collection, matched_topic, n_results=6,
+                                         offset=(flashcard_seed % 4))
         focus_label = f"Deep dive on: {matched_topic}"
         topics_used = [matched_topic]
 
@@ -114,7 +121,8 @@ def generate_flashcards(chat_id):
         topics_used = [t for t, _ in weak_sorted[:6]]
         context     = merge_context_by_topics_budgeted(
             collection, topics_used,
-            per_topic_results=2, max_chars=10000, max_chars_per_topic=1200
+            per_topic_results=2, max_chars=10000, max_chars_per_topic=1200,
+            session_seed=flashcard_seed,
         )
         focus_label = f"Weak topic remediation: {', '.join(topics_used[:4])}"
 
@@ -122,7 +130,8 @@ def generate_flashcards(chat_id):
         topics_used = allowed_topics[:10]
         context     = merge_context_by_topics_budgeted(
             collection, topics_used,
-            per_topic_results=2, max_chars=10000, max_chars_per_topic=800
+            per_topic_results=2, max_chars=10000, max_chars_per_topic=800,
+            session_seed=flashcard_seed,
         )
         focus_label = "Full syllabus coverage"
 
@@ -174,4 +183,3 @@ def generate_flashcards(chat_id):
         "mode":       mode,
         "topics":     topics_used,
     })
-

@@ -285,7 +285,7 @@ const HomeView = ({ user, chats, allSessionHistory, onCreateSession, onSelectCha
               })();
               const Icon  = isJD ? Briefcase : BookOpen;
               const color = isJD ? 'var(--warning)' : 'var(--primary)';
-              const label = isJD ? (chat.subject || chat.examType || 'Interview') : (chat.examType || 'Session');
+              const label = isJD ? (chat.subject || chat.examType || 'Interview') : (chat.subject || chat.examType || 'Session');
 
               return (
                 <button

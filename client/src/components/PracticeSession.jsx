@@ -5,18 +5,18 @@
 //   3. Added showBloomTrajectory + showMisconceptions state
 //   4. Replaced feature buttons div with 5-button version
 //   5. Added two new modals at bottom of return
-
+ 
 import React, { useState } from 'react';
 import {
   Send, Upload, AlertCircle, FileText, History, Clock,
   BarChart3, Zap, Mic, Settings, Layers, ChevronDown,
-  ChevronRight, PenLine, Brain, AlertOctagon, ChevronUp // ← Brain + AlertOctagon added
+  ChevronRight, PenLine, Brain, AlertOctagon, ChevronUp, Trash2
 } from 'lucide-react';
 import { chatAPI } from '../services/api';
 // import HandwrittenChecker from './HandwrittenChecker';
 import { BloomTrajectoryPanel, MisconceptionDashboard } from './IntelligenceDashboard'; // ← added
 import LearnerDiagnosticCard from './LearnerDiagnosticCard';
-
+ 
 const sessionLabel = (type) => {
   if (!type) return 'Practice';
   if (type === 'full' || type === 'full_fallback') return 'Full Practice Test';
@@ -24,17 +24,32 @@ const sessionLabel = (type) => {
   if (type === 'video_full') return '🎥 Video Practice';
   return type.replace(/_/g, ' ');
 };
-
+ 
 const PracticeSession = ({
   chat, pdfs, sessionHistory,
   onGenerateFullExam, onGenerateWeakExam,
-  onUploadPDF, onOpenHistorySession,
+  onUploadPDF, onDeletePDF, onRetryPDF, onOpenHistorySession,
   canGenerate, allProcessed, hasAnyPDF,
   onNewSessionPrefilled,
   onOpenAnalytics,
   onOpenFlashcards,
   sessionMode = 'normal',
 }) => {
+  const [deletingPdfId, setDeletingPdfId] = React.useState(null);
+  const [retryingPdfId, setRetryingPdfId] = React.useState(null);
+ 
+  const handleDeletePDF = async (e, pdfId) => {
+    e.stopPropagation();
+    setDeletingPdfId(pdfId);
+    try { await onDeletePDF?.(pdfId); }
+    finally { setDeletingPdfId(null); }
+  };
+ 
+  const handleRetryPDF = async (pdfId) => {
+    setRetryingPdfId(pdfId);
+    try { await onRetryPDF?.(pdfId); }
+    finally { setRetryingPdfId(null); }
+  };
   const [uploading,          setUploading]          = useState(false);
   const [generating,         setGenerating]         = useState(false);
   const [showAllPdfs,        setShowAllPdfs]        = useState(false);
@@ -43,12 +58,12 @@ const PracticeSession = ({
   const [showBloomTrajectory,setShowBloomTrajectory]= useState(false); // ← new
   const [showMisconceptions, setShowMisconceptions] = useState(false); // ← new
   const [diagnosticOpen, setDiagnosticOpen] = useState(false);
-
+ 
   const videoMode = sessionMode === 'video';
-
+ 
   const processedCount  = (pdfs || []).filter((p) =>  p.processed).length;
   const processingCount = (pdfs || []).filter((p) => !p.processed && !p.error).length;
-
+ 
   const getQuestionTypeSummary = () => {
     if (!chat?.examConfig) return null;
     try {
@@ -63,26 +78,26 @@ const PracticeSession = ({
       return types;
     } catch { return null; }
   };
-
+ 
   const questionTypeSummary = getQuestionTypeSummary();
   const disabledReason = !hasAnyPDF
     ? 'Upload at least 1 PDF first'
     : !allProcessed
     ? 'Waiting for PDFs to finish processing…'
     : null;
-
+ 
   const hasSessionHistory = (sessionHistory || []).length > 0;
-
+ 
   // Misconceptions only useful when there are objective question sessions
   // (not pure video sessions which have no MCQ/fill_blank/true_false)
   const hasObjectiveSessions = (sessionHistory || []).some(
     s => s.type === 'full' || s.type === 'weak' || s.type === 'full_fallback'
   );
-
+ 
   // Bloom trajectory needs non-video sessions — video sessions never write
   // byBloom data because there are no MCQ/descriptive Bloom-tagged questions
   const hasBloomData = hasObjectiveSessions;
-
+ 
   const handlePDFUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -91,12 +106,12 @@ const PracticeSession = ({
     catch (err) { console.error(err); }
     finally { setUploading(false); e.target.value = ''; }
   };
-
+ 
   const handleFullExam = async () => {
     setGenerating(true);
     try { await onGenerateFullExam(); } finally { setGenerating(false); }
   };
-
+ 
   const handleWeakExam = async () => {
     if (!chat?.weakTopics?.length) {
       alert('No weak topics identified yet. Complete a session first.');
@@ -105,15 +120,15 @@ const PracticeSession = ({
     setGenerating(true);
     try { await onGenerateWeakExam(); } finally { setGenerating(false); }
   };
-
-  const primaryLabel = videoMode ? 'Start Full Video Practice' : 'Let\'s Practice!';
-
+ 
+  const primaryLabel = videoMode ? 'Start Video Practice' : 'Let\'s Practice!';
+ 
   return (
     <div className="session-layout">
       {/* ── Main column ─────────────────────────────────────────────────── */}
       <div>
         <div className="card">
-
+ 
           {hasSessionHistory && (
             <div style={{
               background: 'var(--surface-3)',
@@ -155,10 +170,10 @@ const PracticeSession = ({
               )}
             </div>
           )}
-
+ 
           {/* ── Feature buttons — 5 total ────────────────────────────────── */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-
+ 
             <button
               className="btn btn-ghost btn-sm"
               onClick={() => onOpenAnalytics?.()}
@@ -168,7 +183,7 @@ const PracticeSession = ({
             >
               <BarChart3 size={14} style={{ color: 'var(--primary)' }} /> Analytics
             </button>
-
+ 
             <button
               className="btn btn-ghost btn-sm"
               onClick={() => onOpenFlashcards?.()}
@@ -178,7 +193,7 @@ const PracticeSession = ({
             >
               <Layers size={14} style={{ color: 'var(--accent)' }} /> Flashcards
             </button>
-
+ 
             {/* <button
               className="btn btn-ghost btn-sm"
               onClick={() => setShowHandwritten(true)}
@@ -187,7 +202,7 @@ const PracticeSession = ({
             >
               <PenLine size={14} style={{ color: 'var(--warning)' }} /> Check Sheet
             </button> */}
-
+ 
             <button
               className="btn btn-ghost btn-sm"
               onClick={() => setShowBloomTrajectory(true)}
@@ -205,7 +220,7 @@ const PracticeSession = ({
             >
               <Brain size={14} style={{ color: hasBloomData ? '#10b981' : 'var(--text-muted)' }} /> How Deep Are You Going?
             </button>
-
+ 
             <button
               className="btn btn-ghost btn-sm"
               onClick={() => setShowMisconceptions(true)}
@@ -220,7 +235,7 @@ const PracticeSession = ({
               <AlertOctagon size={14} style={{ color: 'var(--danger)' }} /> Misconceptions
             </button>
           </div>
-
+ 
           {/* ── Handwritten checker modal ────────────────────────────────── */}
           {/* {showHandwritten && (
             <div
@@ -240,7 +255,7 @@ const PracticeSession = ({
               </div>
             </div>
           )} */}
-
+ 
           {/* ── Hero ────────────────────────────────────────────────────── */}
           <div className="session-hero">
             <h3>
@@ -265,7 +280,7 @@ const PracticeSession = ({
                 <span style={{ color: 'var(--warning)', marginLeft: 8 }}>· Processing…</span>
               )}
             </p>
-
+ 
             {(questionTypeSummary?.length > 0 || chat?.bloomLevels?.length > 0) && (
               <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {questionTypeSummary?.length > 0 && (
@@ -285,7 +300,7 @@ const PracticeSession = ({
               </div>
             )}
           </div>
-
+ 
           {/* ── PDF section ─────────────────────────────────────────────── */}
           <div style={{ marginBottom: 20 }}>
             <div className="pdf-section-header">
@@ -300,7 +315,7 @@ const PracticeSession = ({
                   <Upload size={14} />
                   {uploading ? 'Uploading…' : 'Upload PDF'}
                   <input
-                    type="file" accept=".pdf .pptx" multiple
+                    type="file" accept=".pdf,.pptx" multiple
                     onChange={handlePDFUpload}
                     style={{ display: 'none' }}
                     disabled={uploading}
@@ -308,29 +323,59 @@ const PracticeSession = ({
                 </label>
               </div>
             </div>
-
+ 
             {!(pdfs || []).length ? (
               <div className="pdf-empty">No notes here yet — upload your study material to get started!</div>
             ) : showAllPdfs ? (
               (pdfs || []).map((pdf) => (
-                <div key={pdf.pdfId} className="pdf-item">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <div key={pdf.pdfId} className="pdf-item"
+                  style={{ opacity: deletingPdfId === pdf.pdfId ? 0.4 : 1, transition: 'opacity 0.2s' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
                     <FileText size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <div className="pdf-name">{pdf.filename}</div>
                       <div className="pdf-meta">
-                        <span className={`badge ${pdf.error ? 'badge-danger' : pdf.processed ? 'badge-success' : 'badge-warning'}`}>
-                          {pdf.error ? 'Error' : pdf.processed ? 'Ready' : 'Processing'}
+                        <span className={`badge ${
+                          retryingPdfId === pdf.pdfId ? 'badge-warning'
+                          : pdf.error ? 'badge-danger'
+                          : pdf.processed ? 'badge-success'
+                          : 'badge-warning'
+                        }`}>
+                          {retryingPdfId === pdf.pdfId ? 'Retrying…'
+                            : pdf.error ? 'Error'
+                            : pdf.processed ? 'Ready'
+                            : 'Processing…'}
                         </span>
                       </div>
                     </div>
                   </div>
-                  {pdf.error && (
-                    <button className="btn btn-primary btn-sm" onClick={async () => {
-                      try { await chatAPI.retryPDF(pdf.pdfId); alert('Retry queued'); }
-                      catch (e) { alert(e.response?.data?.error || e.message); }
-                    }}>Retry</button>
-                  )}
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+                    {pdf.error && (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        disabled={retryingPdfId === pdf.pdfId}
+                        onClick={() => handleRetryPDF(pdf.pdfId)}
+                        style={{ fontSize: 11 }}
+                      >
+                        {retryingPdfId === pdf.pdfId ? 'Retrying…' : 'Retry'}
+                      </button>
+                    )}
+                    <button
+                      title="Remove PDF"
+                      disabled={deletingPdfId === pdf.pdfId}
+                      onClick={(e) => handleDeletePDF(e, pdf.pdfId)}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        padding: '4px', borderRadius: 6, color: 'var(--text-muted)',
+                        display: 'flex', alignItems: 'center',
+                        transition: 'color 0.15s ease',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
               ))
             ) : (
@@ -339,7 +384,7 @@ const PracticeSession = ({
               </div>
             )}
           </div>
-
+ 
           {/* ── Weak topics ─────────────────────────────────────────────── */}
           {chat?.weakTopics?.length > 0 && (
             <div style={{ marginBottom: 20 }}>
@@ -354,7 +399,7 @@ const PracticeSession = ({
               </div>
             </div>
           )}
-
+ 
           {/* ── Analytics preview ────────────────────────────────────────── */}
           {chat?.analytics?.length > 0 && (
             <div style={{ marginBottom: 20 }}>
@@ -378,11 +423,11 @@ const PracticeSession = ({
               ))}
             </div>
           )}
-
+ 
           {disabledReason && (
             <div className="info-box warning" style={{ marginBottom: 12 }}>{disabledReason}</div>
           )}
-
+ 
           {/* ── Primary actions ───────────────────────────────────────────── */}
           <div className="action-stack">
             <button
@@ -414,7 +459,7 @@ const PracticeSession = ({
           </div>
         </div>
       </div>
-
+ 
       {/* ── History sidebar ──────────────────────────────────────────────── */}
       <div>
         <div className="history-card">
@@ -433,7 +478,7 @@ const PracticeSession = ({
               ? <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
               : <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />}
           </button>
-
+ 
           {historyOpen && (
             (sessionHistory || []).length === 0 ? (
               <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: 13 }}>
@@ -473,7 +518,7 @@ const PracticeSession = ({
           )}
         </div>
       </div>
-
+ 
       {/* ── New feature modals ───────────────────────────────────────────── */}
       {showBloomTrajectory && (
         <BloomTrajectoryPanel
@@ -481,7 +526,7 @@ const PracticeSession = ({
           onClose={() => setShowBloomTrajectory(false)}
         />
       )}
-
+ 
       {showMisconceptions && (
         <MisconceptionDashboard
           chatId={chat.chatId}
@@ -491,5 +536,5 @@ const PracticeSession = ({
     </div>
   );
 };
-
+ 
 export default PracticeSession;
