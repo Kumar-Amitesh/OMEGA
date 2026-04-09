@@ -1,4 +1,4 @@
-# 🎓 Context-Aware Adaptive Learning & Interview Preparation System
+# 🎓 Orchestrated Context-Aware Multimodal Evaluation for Adaptive Cognitive Skill Assessment Using Generative AI and Behavioral Analysis [OMEGA]
 
 An AI-powered platform that ingests study materials and job descriptions, then uses **Generative AI (Google Gemini)** and **Retrieval-Augmented Generation (RAG)** to deliver personalized assessments, cognitive growth tracking, misconception diagnosis, and interview delivery analysis — all from a single unified learner profile.
 
