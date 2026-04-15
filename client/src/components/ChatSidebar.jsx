@@ -164,7 +164,7 @@ const ChatSidebar = ({
         <div className="sidebar-header">
           <div className="sidebar-brand">
             <div className="brand-icon"><BookOpen size={18} /></div>
-            <span className="brand-name">PrepPal</span>
+            <span className="brand-name">OMEGA</span>
           </div>
           <button
             className="btn-new-chat"

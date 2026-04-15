@@ -211,7 +211,7 @@ const HomeView = ({ user, chats, allSessionHistory, onCreateSession, onSelectCha
         </div>
         <div style={{ fontSize: 14, color: 'var(--text-secondary)', maxWidth: 480, lineHeight: 1.6, marginBottom: 24 }}>
           {stats.total === 0
-            ? "Welcome to PrepPal — your AI-powered study partner. Upload your notes, pick a mode, and start practising."
+            ? "Welcome to OMEGA — your AI-powered study partner. Upload your notes, pick a mode, and start practising."
             : `You've completed ${stats.total} session${stats.total !== 1 ? 's' : ''}.${stats.avgScore ? ` Average score: ${stats.avgScore}/10.` : ''} Keep it up!`
           }
         </div>
@@ -359,7 +359,7 @@ const HomeView = ({ user, chats, allSessionHistory, onCreateSession, onSelectCha
       <div>
         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)',
           textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-          What PrepPal can do
+          What OMEGA can do
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
           {FEATURES.map((f, i) => (

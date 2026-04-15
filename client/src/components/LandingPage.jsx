@@ -4,7 +4,7 @@
  * Shown to unauthenticated users instead of going straight to the login form.
  * Contains:
  *   - Hero section with tagline and CTA buttons
- *   - Feature highlights (what PrepPal does)
+ *   - Feature highlights (what OMEGA does)
  *   - How it works (3-step flow)
  *   - Social proof stats bar
  *   - Auth modal (login / register) triggered by CTA clicks
@@ -371,7 +371,7 @@ const LandingPage = ({ onLogin }) => {
             }}>
               <BookOpen size={17} style={{ color: 'white' }} />
             </div>
-            <span style={{ fontSize: 17, fontWeight: 800, color: '#f0f2ff' }}>PrepPal</span>
+            <span style={{ fontSize: 17, fontWeight: 800, color: '#f0f2ff' }}>OMEGA</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -528,7 +528,7 @@ const LandingPage = ({ onLogin }) => {
               Not just flashcards
             </h2>
             <p style={{ fontSize: 15, color: '#7a7fa0', marginTop: 10, lineHeight: 1.6 }}>
-              PrepPal combines adaptive testing, AI coaching, and deep analytics
+              OMEGA combines adaptive testing, AI coaching, and deep analytics
               in one tool — built for serious learners.
             </p>
           </div>
@@ -670,7 +670,7 @@ const LandingPage = ({ onLogin }) => {
               display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <BookOpen size={13} style={{ color: 'white' }} />
             </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#f0f2ff' }}>PrepPal</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#f0f2ff' }}>OMEGA</span>
           </div>
           <div style={{ fontSize: 12, color: '#3a3f60' }}>
             AI-powered study companion · Built with ❤️

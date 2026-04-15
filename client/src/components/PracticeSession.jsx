@@ -10,11 +10,11 @@ import React, { useState } from 'react';
 import {
   Send, Upload, AlertCircle, FileText, History, Clock,
   BarChart3, Zap, Mic, Settings, Layers, ChevronDown,
-  ChevronRight, PenLine, Brain, AlertOctagon, ChevronUp, Trash2
+  ChevronRight, PenLine, Brain, AlertOctagon, ChevronUp, Trash2, TrendingDown
 } from 'lucide-react';
 import { chatAPI } from '../services/api';
 // import HandwrittenChecker from './HandwrittenChecker';
-import { BloomTrajectoryPanel, MisconceptionDashboard } from './IntelligenceDashboard'; // ← added
+import { BloomTrajectoryPanel, MisconceptionDashboard, DeliveryTrendsDashboard } from './IntelligenceDashboard'; // ← added
 import LearnerDiagnosticCard from './LearnerDiagnosticCard';
  
 const sessionLabel = (type) => {
@@ -58,6 +58,7 @@ const PracticeSession = ({
   const [showBloomTrajectory,setShowBloomTrajectory]= useState(false); // ← new
   const [showMisconceptions, setShowMisconceptions] = useState(false); // ← new
   const [diagnosticOpen, setDiagnosticOpen] = useState(false);
+  const [showDeliveryTrends, setShowDeliveryTrends] = useState(false);
  
   const videoMode = sessionMode === 'video';
  
@@ -97,6 +98,7 @@ const PracticeSession = ({
   // Bloom trajectory needs non-video sessions — video sessions never write
   // byBloom data because there are no MCQ/descriptive Bloom-tagged questions
   const hasBloomData = hasObjectiveSessions;
+  const hasVideoSessions = (sessionHistory || []).some(s => s.type === 'video_full');
  
   const handlePDFUpload = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -183,6 +185,19 @@ const PracticeSession = ({
             >
               <BarChart3 size={14} style={{ color: 'var(--primary)' }} /> Analytics
             </button>
+
+            {/* Delivery Trends — video mode only */}
+            {videoMode && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowDeliveryTrends(true)}
+                disabled={!hasVideoSessions}
+                title={!hasVideoSessions ? 'Complete a video session first' : 'View delivery trends'}
+                style={{ flex: 1, gap: 6, minWidth: 90 }}
+              >
+                <TrendingDown size={14} style={{ color: hasVideoSessions ? 'var(--primary)' : 'var(--text-muted)' }} /> Delivery Trends
+              </button>
+            )}
  
             <button
               className="btn btn-ghost btn-sm"
@@ -221,19 +236,22 @@ const PracticeSession = ({
               <Brain size={14} style={{ color: hasBloomData ? '#10b981' : 'var(--text-muted)' }} /> How Deep Are You Going?
             </button>
  
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => setShowMisconceptions(true)}
-              disabled={!hasObjectiveSessions}
-              title={
-                !hasObjectiveSessions
-                  ? 'Complete a session with MCQ/fill-blank/true-false questions first'
-                  : 'View misconception patterns'
-              }
-              style={{ flex: 1, gap: 6, minWidth: 90 }}
-            >
-              <AlertOctagon size={14} style={{ color: 'var(--danger)' }} /> Misconceptions
-            </button>
+            {/* Misconceptions — text/normal mode only */}
+            {!videoMode && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowMisconceptions(true)}
+                disabled={!hasObjectiveSessions}
+                title={
+                  !hasObjectiveSessions
+                    ? 'Complete a session with MCQ/fill-blank/true-false questions first'
+                    : 'View misconception patterns'
+                }
+                style={{ flex: 1, gap: 6, minWidth: 90 }}
+              >
+                <AlertOctagon size={14} style={{ color: 'var(--danger)' }} /> Misconceptions
+              </button>
+            )}
           </div>
  
           {/* ── Handwritten checker modal ────────────────────────────────── */}
@@ -531,6 +549,13 @@ const PracticeSession = ({
         <MisconceptionDashboard
           chatId={chat.chatId}
           onClose={() => setShowMisconceptions(false)}
+        />
+      )}
+
+      {showDeliveryTrends && (
+        <DeliveryTrendsDashboard
+          chatId={chat.chatId}
+          onClose={() => setShowDeliveryTrends(false)}
         />
       )}
     </div>

@@ -37,7 +37,7 @@ const AuthPage = ({ onLogin }) => {
           <div className="auth-brand-icon">
             <BookOpen size={28} />
           </div>
-          <h1>PrepPal</h1>
+          <h1>OMEGA</h1>
           <p>Your personal study buddy 🎓</p>
         </div>
 
@@ -87,7 +87,7 @@ const AuthPage = ({ onLogin }) => {
           </div>
 
           <button className="btn btn-primary btn-full" style={{ marginTop: 4 }} disabled={loading}>
-            {loading ? 'Just a sec…' : isLogin ? 'Welcome Back →' : 'Join PrepPal →'}
+            {loading ? 'Just a sec…' : isLogin ? 'Welcome Back →' : 'Join OMEGA →'}
           </button>
         </form>
       </div>
