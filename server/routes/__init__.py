@@ -10,3 +10,4 @@ from .video_session_routes import bp as video_session_bp
 from .jd_routes import bp as jd_bp
 from .jd_session_routes import bp as jd_session_bp
 from .intelligence_routes import bp as intelligence_bp
+from .report_routes import bp as report_bp

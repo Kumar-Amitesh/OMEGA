@@ -148,7 +148,7 @@ def get_delivery_trends(chat_id: str) -> dict:
     """
     sessions = (
         PracticeSession.query
-        .filter_by(chat_id=chat_id, session_type="jd_video")
+        .filter(PracticeSession.chat_id == chat_id, PracticeSession.session_type.in_(["jd_video", "video_full"]))
         .order_by(PracticeSession.created_at.asc())
         .all()
     )

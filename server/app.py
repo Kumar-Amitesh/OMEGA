@@ -7,7 +7,7 @@ from logger import get_logger
 from routes import (
     auth_bp, chat_bp, pdf_bp, question_bp, session_bp,
     debug_bp, flashcard_bp, video_bp, video_session_bp,
-    jd_bp, jd_session_bp, intelligence_bp,
+    jd_bp, jd_session_bp, intelligence_bp, report_bp
 )
 
 logger = get_logger("app")
@@ -140,6 +140,7 @@ app.register_blueprint(video_session_bp)
 app.register_blueprint(jd_bp)
 app.register_blueprint(jd_session_bp)
 app.register_blueprint(intelligence_bp)
+app.register_blueprint(report_bp)
 
 logger.info(
     "App started | CORS origins: %s | Max request: %d MB | Pool size: %s",
