@@ -1,14 +1,8 @@
 """
 routes/patent_report_routes.py
 
-Temporary endpoints for patent filing report data.
-Returns raw numerical data suitable for generating publication-quality charts.
+Returns raw numerical data suitable for generating charts.
 
-Register in routes/__init__.py:
-    from .patent_report_routes import bp as patent_report_bp
-
-Register in app.py:
-    app.register_blueprint(patent_report_bp)
 """
 
 import json
