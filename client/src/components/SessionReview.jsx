@@ -35,12 +35,45 @@ const Collapsible = ({ title, children, defaultOpen = false }) => {
   );
 };
 
+// Add ScoreRing to your imports at the top of SessionReview.jsx
+// (already has CheckCircle, XCircle, HelpCircle, ChevronDown, ChevronUp, AlertCircle)
+
+const ScoreRing = ({ score, size = 56, label }) => {
+  const r    = (size / 2) - 5;
+  const circ = 2 * Math.PI * r;
+  const pct  = Math.max(0, Math.min(10, score || 0)) / 10;
+  const dash = circ * pct;
+  const color = pct >= 0.7 ? 'var(--success)' : pct >= 0.4 ? 'var(--warning)' : 'var(--danger)';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--surface-3)" strokeWidth={4} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={4}
+          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+          style={{ transition: 'stroke-dasharray 0.8s ease' }} />
+        <text x={size/2} y={size/2} textAnchor="middle" dominantBaseline="central"
+          style={{ transform: `rotate(90deg)`, transformOrigin: `${size/2}px ${size/2}px`,
+            fontSize: size * 0.22, fontWeight: 800, fill: color, fontFamily: 'var(--mono)' }}>
+          {score != null ? Number(score).toFixed(1) : '—'}
+        </text>
+      </svg>
+      {label && <span style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', fontWeight: 600 }}>{label}</span>}
+    </div>
+  );
+};
+
 const VideoFeedbackCard = ({ fb }) => {
   if (!fb) return null;
   const overallColor = fb.overallScore >= 7 ? 'var(--success)' : fb.overallScore >= 4 ? 'var(--warning)' : 'var(--danger)';
   return (
     <div style={{ marginTop: 12 }}>
-      <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* ── Score hero with rings — matches live session ── */}
+      <div style={{
+        background: 'var(--surface-2)', border: '1px solid var(--border)',
+        borderRadius: 12, padding: '16px', marginBottom: 10,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexWrap: 'wrap', gap: 16,
+      }}>
         <div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>Overall Score</div>
           <div style={{ fontSize: 28, fontWeight: 800, color: overallColor, fontFamily: 'var(--mono)', lineHeight: 1 }}>
@@ -48,40 +81,147 @@ const VideoFeedbackCard = ({ fb }) => {
             <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 400 }}>/10</span>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-muted)' }}>
-          {fb.content?.answerRelevance != null && <div>Relevance<br /><strong style={{ color: 'var(--text-primary)' }}>{fb.content.answerRelevance}/10</strong></div>}
-          {fb.delivery?.clarity        != null && <div>Clarity<br /><strong style={{ color: 'var(--text-primary)' }}>{fb.delivery.clarity}/10</strong></div>}
-          {fb.naturalness?.score       != null && <div>Naturalness<br /><strong style={{ color: 'var(--text-primary)' }}>{fb.naturalness.score}/10</strong></div>}
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <ScoreRing score={fb.content?.answerRelevance}      label="Relevance" />
+          <ScoreRing score={fb.delivery?.clarity}             label="Clarity" />
+          <ScoreRing score={fb.naturalness?.score}            label="Naturalness" />
+          {fb.visual?.eyeContactEngagement != null && (
+            <ScoreRing score={fb.visual.eyeContactEngagement} label="Eye Contact" />
+          )}
         </div>
       </div>
 
-      {fb.transcript && <Collapsible title="📝 Transcript"><p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{fb.transcript}</p></Collapsible>}
-      {fb.content    && <Collapsible title="📚 Content Quality" defaultOpen>
-        <ScoreBar label="Answer Relevance" score={fb.content.answerRelevance} />
-        <ScoreBar label="Completeness"     score={fb.content.completeness} />
-        <ScoreBar label="Structure & Flow" score={fb.content.structure} />
-        <ScoreBar label="Examples"         score={fb.content.examplesSpecificity} />
-      </Collapsible>}
-      {fb.delivery   && <Collapsible title="🎤 Delivery" defaultOpen>
-        <ScoreBar label="Clarity"         score={fb.delivery.clarity} />
-        <ScoreBar label="Confidence"      score={fb.delivery.confidencePresentation} />
-        <ScoreBar label="Pacing"          score={fb.delivery.pacing} />
-        <ScoreBar label="Filler Words"    score={fb.delivery.fillerWords} />
-      </Collapsible>}
-      {(fb.strengths?.length || fb.improvements?.length) && <Collapsible title="💡 Coaching Notes" defaultOpen>
-        {fb.strengths?.length > 0 && <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--success)', marginBottom: 6 }}>What worked well</div>
-          {fb.strengths.map((s, i) => <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 13, color: 'var(--text-secondary)' }}><CheckCircle size={13} style={{ color: 'var(--success)', flexShrink: 0, marginTop: 2 }} /> {s}</div>)}
-        </div>}
-        {fb.improvements?.length > 0 && <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--warning)', marginBottom: 6 }}>Areas to improve</div>
-          {fb.improvements.map((s, i) => <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 13, color: 'var(--text-secondary)' }}><AlertCircle size={13} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 2 }} /> {s}</div>)}
-        </div>}
-      </Collapsible>}
-      {fb.suggestedBetterAnswer && <Collapsible title="🌟 Suggested Stronger Answer"><p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{fb.suggestedBetterAnswer}</p></Collapsible>}
+      {fb.transcript && (
+        <Collapsible title="📝 Transcript">
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{fb.transcript}</p>
+        </Collapsible>
+      )}
+
+      {fb.content && (
+        <Collapsible title="📚 Content Quality" defaultOpen>
+          <ScoreBar label="Answer Relevance"       score={fb.content.answerRelevance} />
+          <ScoreBar label="Completeness"           score={fb.content.completeness} />
+          <ScoreBar label="Structure & Flow"       score={fb.content.structure} />
+          <ScoreBar label="Examples & Specificity" score={fb.content.examplesSpecificity} />
+        </Collapsible>
+      )}
+
+      {fb.delivery && (
+        <Collapsible title="🎤 Delivery" defaultOpen>
+          <ScoreBar label="Clarity"                       score={fb.delivery.clarity} />
+          <ScoreBar label="Confidence & Presentation"     score={fb.delivery.confidencePresentation} />
+          <ScoreBar label="Pacing"                        score={fb.delivery.pacing} />
+          <ScoreBar label="Filler Words (fewer = better)" score={fb.delivery.fillerWords} />
+        </Collapsible>
+      )}
+
+      {/* ── THIS WAS MISSING ── */}
+      {fb.visual && (fb.visual.eyeContactEngagement != null || fb.visual.postureProfessionalism != null) && (
+        <Collapsible title="👁 Visual Presence">
+          {fb.visual.eyeContactEngagement  != null && (
+            <ScoreBar label="Eye Contact & Engagement"   score={fb.visual.eyeContactEngagement} />
+          )}
+          {fb.visual.postureProfessionalism != null && (
+            <ScoreBar label="Posture & Professionalism"  score={fb.visual.postureProfessionalism} />
+          )}
+        </Collapsible>
+      )}
+
+      {/* ── THIS WAS ALSO MISSING ── */}
+      {fb.naturalness && (
+        <Collapsible title="✨ Naturalness">
+          <ScoreBar label="Naturalness Score" score={fb.naturalness.score} />
+          {fb.naturalness.notes && (
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.6 }}>
+              {fb.naturalness.notes}
+            </p>
+          )}
+        </Collapsible>
+      )}
+
+      {(fb.strengths?.length || fb.improvements?.length) && (
+        <Collapsible title="💡 Coaching Notes" defaultOpen>
+          {fb.strengths?.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--success)', marginBottom: 6 }}>What worked well</div>
+              {fb.strengths.map((s, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 13, color: 'var(--text-secondary)' }}>
+                  <CheckCircle size={13} style={{ color: 'var(--success)', flexShrink: 0, marginTop: 2 }} /> {s}
+                </div>
+              ))}
+            </div>
+          )}
+          {fb.improvements?.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--warning)', marginBottom: 6 }}>Areas to improve</div>
+              {fb.improvements.map((s, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 13, color: 'var(--text-secondary)' }}>
+                  <AlertCircle size={13} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 2 }} /> {s}
+                </div>
+              ))}
+            </div>
+          )}
+        </Collapsible>
+      )}
+
+      {fb.suggestedBetterAnswer && (
+        <Collapsible title="🌟 Suggested Stronger Answer">
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+            {fb.suggestedBetterAnswer}
+          </p>
+        </Collapsible>
+      )}
     </div>
   );
 };
+
+// const VideoFeedbackCard = ({ fb }) => {
+//   if (!fb) return null;
+//   const overallColor = fb.overallScore >= 7 ? 'var(--success)' : fb.overallScore >= 4 ? 'var(--warning)' : 'var(--danger)';
+//   return (
+//     <div style={{ marginTop: 12 }}>
+//       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+//         <div>
+//           <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>Overall Score</div>
+//           <div style={{ fontSize: 28, fontWeight: 800, color: overallColor, fontFamily: 'var(--mono)', lineHeight: 1 }}>
+//             {fb.overallScore != null ? Number(fb.overallScore).toFixed(1) : '—'}
+//             <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 400 }}>/10</span>
+//           </div>
+//         </div>
+//         <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-muted)' }}>
+//           {fb.content?.answerRelevance != null && <div>Relevance<br /><strong style={{ color: 'var(--text-primary)' }}>{fb.content.answerRelevance}/10</strong></div>}
+//           {fb.delivery?.clarity        != null && <div>Clarity<br /><strong style={{ color: 'var(--text-primary)' }}>{fb.delivery.clarity}/10</strong></div>}
+//           {fb.naturalness?.score       != null && <div>Naturalness<br /><strong style={{ color: 'var(--text-primary)' }}>{fb.naturalness.score}/10</strong></div>}
+//         </div>
+//       </div>
+
+//       {fb.transcript && <Collapsible title="📝 Transcript"><p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{fb.transcript}</p></Collapsible>}
+//       {fb.content    && <Collapsible title="📚 Content Quality" defaultOpen>
+//         <ScoreBar label="Answer Relevance" score={fb.content.answerRelevance} />
+//         <ScoreBar label="Completeness"     score={fb.content.completeness} />
+//         <ScoreBar label="Structure & Flow" score={fb.content.structure} />
+//         <ScoreBar label="Examples"         score={fb.content.examplesSpecificity} />
+//       </Collapsible>}
+//       {fb.delivery   && <Collapsible title="🎤 Delivery" defaultOpen>
+//         <ScoreBar label="Clarity"         score={fb.delivery.clarity} />
+//         <ScoreBar label="Confidence"      score={fb.delivery.confidencePresentation} />
+//         <ScoreBar label="Pacing"          score={fb.delivery.pacing} />
+//         <ScoreBar label="Filler Words"    score={fb.delivery.fillerWords} />
+//       </Collapsible>}
+//       {(fb.strengths?.length || fb.improvements?.length) && <Collapsible title="💡 Coaching Notes" defaultOpen>
+//         {fb.strengths?.length > 0 && <div style={{ marginBottom: 10 }}>
+//           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--success)', marginBottom: 6 }}>What worked well</div>
+//           {fb.strengths.map((s, i) => <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 13, color: 'var(--text-secondary)' }}><CheckCircle size={13} style={{ color: 'var(--success)', flexShrink: 0, marginTop: 2 }} /> {s}</div>)}
+//         </div>}
+//         {fb.improvements?.length > 0 && <div>
+//           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--warning)', marginBottom: 6 }}>Areas to improve</div>
+//           {fb.improvements.map((s, i) => <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 13, color: 'var(--text-secondary)' }}><AlertCircle size={13} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 2 }} /> {s}</div>)}
+//         </div>}
+//       </Collapsible>}
+//       {fb.suggestedBetterAnswer && <Collapsible title="🌟 Suggested Stronger Answer"><p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{fb.suggestedBetterAnswer}</p></Collapsible>}
+//     </div>
+//   );
+// };
 
 /* ─────────────────────────────────────────
    JD INTERVIEW FEEDBACK CARD
