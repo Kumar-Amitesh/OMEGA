@@ -296,5 +296,26 @@ def merge_context_by_topics_budgeted(
 
     return "".join(merged).strip()
 
-
+def get_topics_with_content(collection) -> set:
+    """
+    Returns the set of topic names that have at least one chunk stored
+    in ChromaDB. Used to filter allowed topics to only those with
+    actual uploaded content.
+    """
+    try:
+        data = collection.get(include=["metadatas"])
+        covered = set()
+        for m in (data.get("metadatas") or []):
+            if not m:
+                continue
+            raw = m.get("topics", "[]")
+            try:
+                topics = json.loads(raw) if isinstance(raw, str) else raw
+                if isinstance(topics, list):
+                    covered.update(t.strip() for t in topics if t and t.strip())
+            except Exception:
+                pass
+        return covered
+    except Exception:
+        return set()
 

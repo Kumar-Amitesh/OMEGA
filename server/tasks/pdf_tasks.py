@@ -146,15 +146,24 @@ def process_pdf_task(self, pdf_id, user_id, chat_id, path):
                 for qtype in ["mcq", "fill_blank", "true_false", "descriptive"]:
                     old_cfg = existing_qtypes.get(qtype) or {}
                     new_cfg = inferred_qtypes.get(qtype) or {}
+                    inferred_count = int(new_cfg.get("count", 0) or 0)
+                    inferred_marks = float(new_cfg.get("marks", 0) or 0)
+                    inferred_neg   = float(new_cfg.get("negativeMarks", 0) or 0)
                     merged_qtypes[qtype] = {
-                        "count":  int(old_cfg.get("count",  new_cfg.get("count",  0)) or 0),
-                        "marks":  float(old_cfg.get("marks", new_cfg.get("marks",  0)) or 0),
+                        # "count":  int(old_cfg.get("count",  new_cfg.get("count",  0)) or 0),
+                        "count":  inferred_count if inferred_count > 0 else int(0),
+                        # "marks":  float(old_cfg.get("marks", new_cfg.get("marks",  0)) or 0),
+                        "marks": inferred_marks / inferred_count if inferred_marks > 0 and inferred_count > 0 else float(0),
+                        # "negativeMarks": (
+                        #     0.0 if qtype == "descriptive"
+                        #     else float(
+                        #         old_cfg.get("negativeMarks",
+                        #                     new_cfg.get("negativeMarks", 0)) or 0
+                        #     )
+                        # ),
                         "negativeMarks": (
                             0.0 if qtype == "descriptive"
-                            else float(
-                                old_cfg.get("negativeMarks",
-                                            new_cfg.get("negativeMarks", 0)) or 0
-                            )
+                            else (inferred_neg if inferred_neg > 0 else float(0))
                         ),
                     }
  

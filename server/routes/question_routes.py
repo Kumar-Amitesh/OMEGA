@@ -23,6 +23,7 @@ from services.chroma_service import (
     compute_topic_weights,
     fetch_topic_chunks,
     merge_context_by_topics_budgeted,
+    get_topics_with_content,
 )
 from services.exam_service import (
     get_question_types_config,
@@ -133,8 +134,16 @@ def generate_full_exam(chat_id):
     collection_name = chroma_collection_name(user.id, chat_id)
     collection      = get_chroma_collection(client, collection_name)
 
-    db_topics = SubjectTopic.query.filter_by(chat_id=chat_id).all()
-    allowed   = [t.topic_name for t in db_topics if t.topic_name] or ["General"]
+    # db_topics = SubjectTopic.query.filter_by(chat_id=chat_id).all()
+    # allowed   = [t.topic_name for t in db_topics if t.topic_name] or ["General"]
+
+    db_topics  = SubjectTopic.query.filter_by(chat_id=chat_id).all()
+    all_topics = [t.topic_name for t in db_topics if t.topic_name] or ["General"]
+
+    covered = get_topics_with_content(collection)
+    allowed = [t for t in all_topics if t in covered] if covered else all_topics
+    if not allowed:
+        allowed = all_topics  # fallback if filtering removed everything
 
     weights       = compute_topic_weights(collection)
     weights_small = top_n_weights(weights, n=10)
@@ -366,8 +375,16 @@ def generate_weak_exam(chat_id):
     collection_name = chroma_collection_name(user.id, chat_id)
     collection      = get_chroma_collection(client, collection_name)
 
-    db_topics = SubjectTopic.query.filter_by(chat_id=chat_id).all()
-    allowed   = [t.topic_name for t in db_topics if t.topic_name] or ["General"]
+    # db_topics = SubjectTopic.query.filter_by(chat_id=chat_id).all()
+    # allowed   = [t.topic_name for t in db_topics if t.topic_name] or ["General"]
+
+    db_topics  = SubjectTopic.query.filter_by(chat_id=chat_id).all()
+    all_topics = [t.topic_name for t in db_topics if t.topic_name] or ["General"]
+
+    covered = get_topics_with_content(collection)
+    allowed = [t for t in all_topics if t in covered] if covered else all_topics
+    if not allowed:
+        allowed = all_topics  # fallback if filtering removed everything
 
     weak_topics = sorted(
         weak_topics_map.keys(),
