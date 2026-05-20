@@ -1,5 +1,5 @@
 """
-routes/patent_report_routes.py
+routes/report_routes.py
 
 Returns raw numerical data suitable for generating charts.
 
@@ -17,8 +17,8 @@ from services.delivery_trend_service import get_delivery_trends
 from services.evaluation_service import update_topic_weakness
 from logger import get_logger
 
-logger = get_logger("patent_report")
-bp = Blueprint("patent_report_routes", __name__)
+logger = get_logger("report")
+bp = Blueprint("report_routes", __name__)
 
 
 def _get_chat_or_403(chat_id, user):
@@ -31,10 +31,10 @@ def _get_chat_or_403(chat_id, user):
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. EMA WEAKNESS SCORE CONVERGENCE
 #    Shows how the EMA score stabilizes over simulated sessions for each topic.
-#    For patent: demonstrates the mathematical convergence property of the model.
+#    For report: demonstrates the mathematical convergence property of the model.
 # ─────────────────────────────────────────────────────────────────────────────
 
-@bp.route("/api/patent/ema-convergence/<chat_id>", methods=["GET"])
+@bp.route("/api/report/ema-convergence/<chat_id>", methods=["GET"])
 def ema_convergence(chat_id):
     """
     Simulates EMA convergence by replaying the actual session history
@@ -127,7 +127,7 @@ def ema_convergence(chat_id):
     }
     top_topics = sorted(final_scores, key=final_scores.get, reverse=True)[:6]
 
-    # EMA formula parameters for patent documentation
+    # EMA formula parameters for documentation
     ema_params = {
         "alpha": alpha,
         "half_life_sessions": round(math.log(0.5) / math.log(1 - alpha), 2),
@@ -162,7 +162,7 @@ def ema_convergence(chat_id):
 #    so you can plot the diverging trend lines for content vs delivery.
 # ─────────────────────────────────────────────────────────────────────────────
 
-@bp.route("/api/patent/ols-delivery-trends/<chat_id>", methods=["GET"])
+@bp.route("/api/report/ols-delivery-trends/<chat_id>", methods=["GET"])
 def ols_delivery_trends(chat_id):
     """
     Returns raw delivery + content metric values per session AND their OLS
@@ -248,7 +248,7 @@ def ols_delivery_trends(chat_id):
                          else "stable",
             }
 
-    # Compute divergence score for patent documentation
+    # Compute divergence score for report documentation
     content_slopes  = [metrics_data[m]["ols"]["slope"] for m in content_metrics if m in metrics_data]
     delivery_slopes = [metrics_data[m]["ols"]["slope"] for m in delivery_metrics if m in metrics_data]
     avg_content  = sum(content_slopes)  / len(content_slopes)  if content_slopes  else 0
@@ -282,10 +282,10 @@ def ols_delivery_trends(chat_id):
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. MISCONCEPTION DETECTION RESULTS
 #    Returns structured misconception data with confidence scores, cluster
-#    labels, persistence flags — ready for a patent exhibit table/chart.
+#    labels, persistence flags — ready for a report exhibit table/chart.
 # ─────────────────────────────────────────────────────────────────────────────
 
-@bp.route("/api/patent/misconception-analysis/<chat_id>", methods=["GET"])
+@bp.route("/api/report/misconception-analysis/<chat_id>", methods=["GET"])
 def misconception_analysis(chat_id):
     """
     Returns fully structured misconception clusters with:
@@ -307,7 +307,7 @@ def misconception_analysis(chat_id):
 
     data = get_misconceptions_for_chat(chat_id)
 
-    # Build patent-ready structured output
+    # Build report-ready structured output
     topics_structured = []
     for t in data.get("topics", []):
         clusters = []
@@ -338,7 +338,7 @@ def misconception_analysis(chat_id):
             "topPattern": t.get("rawPatterns", [{}])[0] if t.get("rawPatterns") else None,
         })
 
-    # Confidence score formula for patent documentation
+    # Confidence score formula for report documentation
     confidence_formula = {
         "formula": "confidence = min(1.0, (f/W) * ln(1+f) / ln(1+W))",
         "variables": {
@@ -397,16 +397,16 @@ def misconception_analysis(chat_id):
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. BLOOM TRAJECTORY DATA
-#    Returns per-topic Bloom mastery progression for patent exhibit.
+#    Returns per-topic Bloom mastery progression for report exhibit.
 # ─────────────────────────────────────────────────────────────────────────────
 
-@bp.route("/api/patent/bloom-trajectory/<chat_id>", methods=["GET"])
-def bloom_trajectory_patent(chat_id):
+@bp.route("/api/report/bloom-trajectory/<chat_id>", methods=["GET"])
+def bloom_trajectory_report(chat_id):
     """
     Returns Bloom level mastery data per topic — suitable for a radar chart
     or stacked bar chart showing cognitive depth progression.
 
-    Patent value: demonstrates the system's ability to model learning at
+    Report value: demonstrates the system's ability to model learning at
     six distinct cognitive levels (Bloom's taxonomy) simultaneously.
     """
     user = get_user_from_token()
@@ -483,7 +483,7 @@ def bloom_trajectory_patent(chat_id):
 #    Shows the composite health score formula with component contributions.
 # ─────────────────────────────────────────────────────────────────────────────
 
-@bp.route("/api/patent/health-score/<chat_id>", methods=["GET"])
+@bp.route("/api/report/health-score/<chat_id>", methods=["GET"])
 def health_score_breakdown(chat_id):
     """
     Returns the unified learner health score with full component breakdown.
